@@ -67,6 +67,7 @@ export function EventModal({
   };
 
   return (
+    <div className="modal-overlay">
     <form aria-label="event-modal" onSubmit={submit}>
       <h2>Add Time Block</h2>
       <label>
@@ -127,5 +128,6 @@ export function EventModal({
       </button>
       {error ? <p role="alert">{error}</p> : null}
     </form>
+    </div>
   );
 }

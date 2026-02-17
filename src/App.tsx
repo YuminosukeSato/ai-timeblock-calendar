@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 import { CalendarView } from './components/calendar/CalendarView';
 import { ViewToggle } from './components/calendar/ViewToggle';
 import { GanttView } from './components/gantt/GanttView';
+import { EventModal, EventModalValues } from './components/modal/EventModal';
 import { GanttTask, TimeBlock } from './types';
 import { useTimeBlockStore } from './store/timeBlockStore';
 
@@ -99,10 +100,58 @@ const demoGanttTasks: GanttTask[] = [
 
 export default function App() {
   const [view, setView] = useState<'day' | 'week' | 'month' | 'gantt'>('week');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<TimeBlock | null>(null);
   const blocks = useTimeBlockStore((state) => state.blocks);
+  const createBlockOptimistic = useTimeBlockStore(
+    (state) => state.createBlockOptimistic
+  );
+  const updateBlockOptimistic = useTimeBlockStore(
+    (state) => state.updateBlockOptimistic
+  );
   const displayBlocks = blocks.length > 0 ? blocks : demoBlocks;
 
   const ganttTasks = useMemo(() => demoGanttTasks, []);
+
+  const handleNewBlock = useCallback(() => {
+    setEditingBlock(null);
+    setIsModalOpen(true);
+  }, []);
+
+  const handleSave = useCallback(
+    (values: EventModalValues) => {
+      if (editingBlock) {
+        updateBlockOptimistic(editingBlock.id, {
+          title: values.title,
+          startTime: values.startTime,
+          endTime: values.endTime,
+          categoryId: values.categoryId,
+          projectId: values.projectId,
+          progress: values.progress
+        });
+      } else {
+        const id = crypto.randomUUID();
+        createBlockOptimistic({
+          id,
+          title: values.title,
+          startTime: values.startTime,
+          endTime: values.endTime,
+          categoryId: values.categoryId,
+          projectId: values.projectId,
+          progress: values.progress,
+          syncStatus: 'local'
+        });
+      }
+      setIsModalOpen(false);
+      setEditingBlock(null);
+    },
+    [editingBlock, createBlockOptimistic, updateBlockOptimistic]
+  );
+
+  const handleCancel = useCallback(() => {
+    setIsModalOpen(false);
+    setEditingBlock(null);
+  }, []);
 
   return (
     <div className="notion-shell">
@@ -166,7 +215,9 @@ export default function App() {
             <button className="ghost-btn">{'<'}</button>
             <button className="ghost-btn">{'>'}</button>
             <ViewToggle view={view} onChange={setView} />
-            <button className="primary-btn">+ New Block</button>
+            <button className="primary-btn" onClick={handleNewBlock}>
+              + New Block
+            </button>
           </div>
         </header>
         <section className="calendar-surface">
@@ -219,6 +270,24 @@ export default function App() {
           </ul>
         </section>
       </aside>
+
+      <EventModal
+        isOpen={isModalOpen}
+        initialValues={
+          editingBlock
+            ? {
+                title: editingBlock.title,
+                startTime: editingBlock.startTime,
+                endTime: editingBlock.endTime,
+                categoryId: editingBlock.categoryId,
+                projectId: editingBlock.projectId,
+                progress: editingBlock.progress
+              }
+            : undefined
+        }
+        onSave={handleSave}
+        onCancel={handleCancel}
+      />
     </div>
   );
 }

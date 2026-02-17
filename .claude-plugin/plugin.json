@@ -1,0 +1,8 @@
+{
+  "name": "ai-timeblock-calendar",
+  "description": "AI Time Block Calendar - Claude Code plugin for AI-driven schedule management via MCP server",
+  "version": "0.1.0",
+  "author": {
+    "name": "YuminosukeSato"
+  }
+}

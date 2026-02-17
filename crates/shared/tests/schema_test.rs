@@ -1,4 +1,6 @@
 use std::fs;
+use std::thread;
+use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use rusqlite::Connection;
@@ -46,5 +48,16 @@ fn open_db_enables_wal_mode() {
 
     assert_eq!(mode.to_lowercase(), "wal");
 
-    fs::remove_dir_all(&dir).expect("temp dir should be removed");
+    drop(conn);
+
+    for attempt in 0..5 {
+        match fs::remove_dir_all(&dir) {
+            Ok(_) => return,
+            Err(err) if attempt < 4 => {
+                thread::sleep(Duration::from_millis(50));
+                continue;
+            }
+            Err(err) => panic!("temp dir should be removed: {err}"),
+        }
+    }
 }

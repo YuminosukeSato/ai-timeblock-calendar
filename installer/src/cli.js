@@ -35,7 +35,7 @@ function detectTarget() {
 function releaseBaseUrl() {
   const repo =
     process.env.AI_TIMEBLOCK_REPO ??
-    'https://github.com/example/ai-timeblock-calendar';
+    'https://github.com/YuminosukeSato/ai-timeblock-calendar';
   const version = process.env.AI_TIMEBLOCK_VERSION ?? 'v0.1.0';
   return `${repo}/releases/download/${version}`;
 }

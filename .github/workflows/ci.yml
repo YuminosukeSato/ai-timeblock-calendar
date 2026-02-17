@@ -19,6 +19,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache cargo
+        if: matrix.os != 'windows-latest'
         uses: Swatinem/rust-cache@v2
 
       - name: Cargo test

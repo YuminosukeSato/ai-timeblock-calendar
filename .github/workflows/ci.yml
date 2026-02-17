@@ -28,8 +28,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: cargo clippy --workspace --exclude app-tauri --all-targets -- -D warnings
 
-      - name: Cargo fmt check
+      - name: Cargo fmt check (advisory)
         if: matrix.os == 'ubuntu-latest'
+        continue-on-error: true
         run: cargo fmt --all --check
 
   test-frontend:

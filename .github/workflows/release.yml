@@ -19,6 +19,7 @@ jobs:
         id: release
         with:
           release-type: simple
+          skip-github-pull-request: true
 
   build:
     needs: release-please

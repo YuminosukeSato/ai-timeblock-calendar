@@ -1,0 +1,39 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cargo test
+        run: cargo test --workspace
+
+      - name: Build mcp-server
+        run: cargo build -p mcp-server --release
+
+      - name: Create checksums
+        run: |
+          mkdir -p dist
+          cp target/release/mcp-server dist/mcp-server
+          shasum -a 256 dist/* > dist/checksums.txt
+
+      - name: Publish npm installer
+        run: |
+          cd installer
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

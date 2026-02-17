@@ -1,0 +1,12 @@
+{
+  "name": "@aitimeblock/ai-timeblock-installer",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "ai-timeblock": "./src/cli.js"
+  },
+  "scripts": {
+    "test": "node ./src/cli.js doctor"
+  }
+}

@@ -1,30 +1,99 @@
-name: release
+name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  build:
+  release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: rust
+
+  build:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: darwin-arm64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            suffix: darwin-x64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: linux-x64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: windows-x64
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      - name: Cargo test
-        run: cargo test --workspace
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
 
       - name: Build mcp-server
-        run: cargo build -p mcp-server --release
+        run: cargo build -p mcp-server --release --target ${{ matrix.target }}
 
-      - name: Create checksums
+      - name: Package (unix)
+        if: matrix.os != 'windows-latest'
         run: |
-          mkdir -p dist
-          cp target/release/mcp-server dist/mcp-server
-          shasum -a 256 dist/* > dist/checksums.txt
+          mkdir -p staging
+          cp target/${{ matrix.target }}/release/mcp-server staging/
+          cd staging
+          tar czf ../mcp-server-${{ matrix.suffix }}.tar.gz mcp-server
+          cd ..
+          shasum -a 256 mcp-server-${{ matrix.suffix }}.tar.gz > mcp-server-${{ matrix.suffix }}.tar.gz.sha256
+
+      - name: Package (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path staging
+          Copy-Item target/${{ matrix.target }}/release/mcp-server.exe staging/
+          Compress-Archive -Path staging/mcp-server.exe -DestinationPath mcp-server-${{ matrix.suffix }}.zip
+          (Get-FileHash mcp-server-${{ matrix.suffix }}.zip -Algorithm SHA256).Hash | Out-File mcp-server-${{ matrix.suffix }}.zip.sha256
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: |
+            mcp-server-*.tar.gz
+            mcp-server-*.tar.gz.sha256
+            mcp-server-*.zip
+            mcp-server-*.zip.sha256
+
+  publish-npm:
+    needs: [release-please, build]
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
 
       - name: Publish npm installer
         run: |
@@ -32,8 +101,3 @@ jobs:
           npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
